@@ -4,21 +4,27 @@
 [![GitHub Sponsorship](https://img.shields.io/badge/support-me-red.svg)](https://github.com/users/rix1337/sponsorship)
 
 JDownloader Bridge for Radarr and (later also) Sonarr.
+Quasarr poses as Newznab Indexer and SABnzbd Download Client.
+Thus it will not work in parallel with a real indexer/download client set up.
+Torrents will remain unaffected.
 
-* Follow instructions to set up at least one hostname
-* Provide your [My JDownloader credentials](https://my.jdownloader.org)
-* Then use Quasarr's URL as 'Newznab Indexer' and 'SABnzbd Download Client' in Sonarr/Radarr.
+* Follow instructions to set up at least one hostname for Quasarr
+* Provide your [MyJDownloader credentials](https://my.jdownloader.org)
+* Set up Quasarr's URL as 'Newznab Indexer' and 'SABnzbd Download Client' in Sonarr/Radarr.
     * Leave settings at default
     * Use this API key: `quasarr`
 
-**Warning: this is a very early dev version. Only tested with Radarr. Only one hostname supported.**
+**Warning: this is a very early proof-of-concept.
+It is only tested with Radarr and only one hostname at the moment.**
 
 Everything should work in Radarr, except:
+
 - Deleting downloads
 
 # Setup
 
 `pip install quasarr`
+
 * Requires Python 3.12
 
 # Run

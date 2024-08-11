@@ -2,14 +2,17 @@
 # Quasarr
 # Project by https://github.com/rix1337
 
+import re
 from base64 import urlsafe_b64decode
 from xml.etree import ElementTree as ET
 
-from bottle import Bottle, request, redirect
+import requests
+from bottle import Bottle, request, redirect, response
 
 from quasarr.downloads import download_package, delete_package, get_packages
 from quasarr.providers import shared_state
 from quasarr.providers.html_templates import render_centered_html
+from quasarr.providers.obfuscated import captcha_js, captcha_values
 from quasarr.providers.web_server import Server
 from quasarr.search import get_search_results
 
@@ -18,6 +21,80 @@ def api(shared_state_dict, shared_state_lock):
     shared_state.set_state(shared_state_dict, shared_state_lock)
 
     app = Bottle()
+
+    @app.route('/captcha')
+    def serve_captcha():
+        content = render_centered_html(r'''
+            <script type="text/javascript">
+                var api_key = "''' + captcha_values()["api_key"] + r'''";
+                var endpoint = '/captcha/' + api_key + '.html';
+                function handleToken(token) {
+                    document.getElementById("captcha-key").innerText = token;
+                }
+                ''' + captcha_js() + r'''</script>
+                <div>
+                    <h1>Quasarr</h1>
+                    <p>Solve this captcha to unlock the next filecrypt link</p>
+                    <div id="puzzle-captcha" aria-style="mobile">
+                        <strong>Your adblocker prevents the captcha from loading. Disable it!</strong>
+                    </div>
+        
+                    <div id="captcha-key"></div>
+        
+                </div>
+                </html>''')
+
+        return content
+
+    @app.post('/captcha/<captcha_id>.html')
+    def proxy(captcha_id):
+        target_url = f"{captcha_values()["url"]}/captcha/{captcha_id}.html"
+
+        headers = {key: value for key, value in request.headers.items() if key != 'Host'}
+        data = request.body.read()
+        resp = requests.post(target_url, headers=headers, data=data)
+
+        response.content_type = resp.headers.get('Content-Type')
+
+        content = resp.text
+        content = re.sub(r'<script src="/jquery\.js\?3"></script>',
+                         f'<script src="{captcha_values()["url"]}/jquery.js?3"></script>', content)
+        content = re.sub(r'<script src="/jquery-ui\.js"></script>',
+                         f'<script src="{captcha_values()["url"]}/jquery-ui.js"></script>', content)
+        content = re.sub(r'<script src="/jquery\.ui\.touch-punch\.min\.js"></script>',
+                         f'<script src="{captcha_values()["url"]}/jquery.ui.touch-punch.min.js"></script>', content)
+        response.content_type = 'text/html'
+        return content
+
+    @app.post('/captcha/<captcha_id>.json')
+    def specific_proxy(captcha_id):
+        target_url = f"{captcha_values()["url"]}/captcha/{captcha_id}.json"
+
+        headers = {key: value for key, value in request.headers.items() if key != 'Host'}
+        data = request.body.read()
+        resp = requests.post(target_url, headers=headers, data=data)
+
+        response.content_type = resp.headers.get('Content-Type')
+        return resp.content
+
+    @app.route('/captcha/<captcha_id>/<uuid>/<filename>')
+    def captcha_proxy(captcha_id, uuid, filename):
+        new_url = f"{captcha_values()["url"]}/captcha/{captcha_id}/{uuid}/{filename}"
+        redirect(new_url, 302)
+
+    @app.post('/captcha/<captcha_id>/check')
+    def captcha_check_proxy(captcha_id):
+        new_url = f"{captcha_values()["url"]}/captcha/{captcha_id}/check"
+        headers = {key: value for key, value in request.headers.items()}
+
+        data = request.body.read()
+        resp = requests.post(new_url, headers=headers, data=data)
+
+        response.status = resp.status_code
+        for header in resp.headers:
+            if header.lower() not in ['content-encoding', 'transfer-encoding', 'content-length', 'connection']:
+                response.set_header(header, resp.headers[header])
+        return resp.content
 
     @app.get('/')
     def index():

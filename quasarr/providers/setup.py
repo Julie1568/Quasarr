@@ -177,7 +177,7 @@ def nx_credentials_config(shared_state):
         return render_fail("User and Password wrong or empty!")
 
     print(
-        f'NX credentials required to decrypt download links.'
+        f'NX credentials required to decrypt download links. '
         f'Starting web server for config at: "{shared_state.values['external_address']}".')
     print("Please set your NX user and password there! First register an account if you don't have one yet.")
     return Server(app, listen='0.0.0.0', port=shared_state.values['port']).serve_temporarily()
